@@ -1,0 +1,14 @@
+#!/bin/bash
+
+EPILOGDIR={{ slurm_epilog_dir }}
+
+if [[ ! -d ${EPILOGDIR }} ]]; then
+	exit 0
+fi
+
+for EPILOGSCRIPT in ${EPILOGDIR}/*.sh; do
+	if [ -x "${EPILOGSCRIPT}" ]; then
+		${EPILOGSCRIPT}
+	fi
+done
+

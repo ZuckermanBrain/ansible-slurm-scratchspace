@@ -1,0 +1,5 @@
+#!/bin/bash
+
+export SLURM_TMPFS={{ slurm_config.TmpFS }}
+export SLURM_SCRATCH=${SLURM_TMPFS}/${USER}/${SLURM_JOB_ID}
+mkdir -p ${SLURM_SCRATCH}

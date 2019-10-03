@@ -1,2 +1,9 @@
 ---
 # defaults file for app-slurm-scratchspace
+slurm_prolog_dir: "/etc/slurm/prolog.d"
+slurm_epilog_dir: "/etc/slurm/epilog.d"
+
+slurm_config:
+  TmpFS: "/local"
+  TaskProlog: "/etc/slurm/prolog"
+  TaskEpilog: "/etc/slurm/epilog"

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Redefine these variables in case the batch job has unset 
+# or otherwise modified them.
+export SLURM_TMPFS={{ slurm_config.TmpFS }}
+export SLURM_SCRATCH=${SLURM_TMPFS}/${USER}/${SLURM_JOB_ID}
+if [[ ! -d ${SLURM_SCRATCH} ]];
+then
+	rm -r ${SLURM_SCRATCH}
+fi

@@ -1,2 +1,69 @@
 ---
 # tasks file for app-slurm-scratchspace
+
+- name: "Make directories for prolog and epilog scripts"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "root"
+    group: "root"
+    mode: "0755"
+  with_items:
+    - "{{ slurm_prolog_dir }}"
+    - "{{ slurm_epilog_dir }}"
+
+- name: "Install non-templated prolog scripts"
+  copy:
+    src: "{{ item }}"
+    dest: "{{ slurm_prolog_dir }}/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+  with_fileglob:
+    - "prolog.d/*.sh"
+
+- name: "Install templated prolog scripts"
+  template:
+    src: "{{ item }}"
+    dest: "{{ slurm_prolog_dir }}/{{ item|replace('.j2','') }}"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+  with_fileglob:
+    - "templates/prolog.d/*.j2"
+
+- name: "Install non-templated epilog scripts"
+  copy:
+    src: "{{ item }}"
+    dest: "{{ slurm_epilog_dir }}/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+  with_fileglob:
+    - "epilog.d/*.sh"
+
+- name: "Install templated epilog scripts"
+  template:
+    src: "{{ item }}"
+    dest: "{{ slurm_epilog_dir }}/{{ item|replace('.j2','') }}"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+  with_fileglob:
+     - "templates/epilog.d/*.j2"
+
+- name: "Install main prolog script"
+  template:
+    src: "prolog.j2"
+    dest: "{{ slurm_config.TaskProlog }}"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+
+- name: "Install main epilog script"
+  template:
+    src: "epilog.j2"
+    dest: "{{ slurm_config.TaskEpilog }}"
+    owner: "root"
+    group: "root"
+    mode: "0755"
