@@ -2,4 +2,8 @@
 
 export SLURM_TMPFS={{ slurm_config.TmpFS }}
 export SLURM_SCRATCH=${SLURM_TMPFS}/${USER}/${SLURM_JOB_ID}
+# Variable exports need to display on stdout.  From slurm.conf(5):
+# "Standard output from this program can be used to control the environment variables and output for the user program."
+echo "export SLURM_SCRATCH=${SLURM_TMPFS}/${USER}/${SLURM_JOB_ID}"
+echo "Creating scratch space at ${SLURM_SCRATCH}"
 mkdir -p ${SLURM_SCRATCH}
