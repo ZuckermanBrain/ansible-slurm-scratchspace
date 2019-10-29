@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# From https://stackoverflow.com/questions/26621647/convert-human-readable-to-bytes-in-bash/26621833
+dehumanise() {
+	for v in "${@:-$(</dev/stdin)}"
+	do  
+		echo $v | awk \
+		'BEGIN{IGNORECASE = 1}
+		function printpower(n,b,p) {printf "%u\n", n*b^p; next}
+		/[0-9]$/{print $1;next};
+		/K(iB)?$/{printpower($1,  2, 10)};
+		/M(iB)?$/{printpower($1,  2, 20)};
+		/G(iB)?$/{printpower($1,  2, 30)};
+		/T(iB)?$/{printpower($1,  2, 40)};
+		/KB$/{    printpower($1, 10,  3)};
+		/MB$/{    printpower($1, 10,  6)};
+		/GB$/{    printpower($1, 10,  9)};
+		/TB$/{    printpower($1, 10, 12)}'
+	done
+} 
+
+export SLURM_TMPFS={{ slurm_config.TmpFS }}
+export XFS_BLOCKSIZE=$(xfs_info ${SLURM_TMPFS} | grep data | grep -o bsize=[0-9]* | cut -d= -f2)
+export SLURM_USER=$(scontrol show job ${SLURM_JOB_ID} | grep -io 'UserId=[A-Za-z]\{1,3\}[0-9]*' | cut -d= -f2)
+export SLURM_MINTMPDISKNODE=$(scontrol show job ${SLURM_JOB_ID} | grep -io MinTmpDiskNode=.* | cut -d= -f2)
+export XFS_REQUESTEDBLOCKS=$(( $(dehumanise ${SLURM_MINTMPDISKNODE}) / ${XFS_BLOCKSIZE} ))
+# Get current quota allocation
+export XFS_CURRENTBLOCKS=$(xfs_quota -x -c "report -u ${SLURM_USER}" ${SLURM_TMPFS})
+export XFS_TOTALBLOCKS=$(( ${XFS_CURRENTBLOCKS} + ${XFS_REQUESTEDBLOCKS} ))
+echo "Setting scratch space quota for ${SLURM_USER}"
+xfs_quota -x -c "limit bhard=${XFS_TOTALBLOCKS} ${SLURM_USER}" ${SLURM_TMPFS}

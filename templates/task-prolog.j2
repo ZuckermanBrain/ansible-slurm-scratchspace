@@ -1,0 +1,14 @@
+#!/bin/bash
+
+PROLOGDIR={{ slurm_prolog_dir }}
+
+if [[ ! -d ${PROLOGDIR} ]]; then
+	exit 0
+fi
+
+for PROLOGSCRIPT in ${PROLOGDIR}/*.sh; do
+	if [ -x "${PROLOGSCRIPT}" ]; then
+		${PROLOGSCRIPT}
+	fi
+done
+

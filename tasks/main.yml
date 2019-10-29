@@ -15,7 +15,7 @@
 - name: "Install main prolog script"
   template:
     src: "prolog.j2"
-    dest: "{{ slurm_config.TaskProlog }}"
+    dest: "{{ slurm_config.Prolog }}"
     owner: "root"
     group: "root"
     mode: "0755"
@@ -23,6 +23,22 @@
 - name: "Install main epilog script"
   template:
     src: "epilog.j2"
+    dest: "{{ slurm_config.Epilog }}"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+
+- name: "Install main task prolog script"
+  template:
+    src: "task-prolog.j2"
+    dest: "{{ slurm_config.TaskProlog }}"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+
+- name: "Install main task epilog script"
+  template:
+    src: "task-epilog.j2"
     dest: "{{ slurm_config.TaskEpilog }}"
     owner: "root"
     group: "root"

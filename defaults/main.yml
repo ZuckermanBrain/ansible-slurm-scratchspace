@@ -5,5 +5,8 @@ slurm_epilog_dir: "/etc/slurm/epilog.d"
 
 slurm_config:
   TmpFS: "/local"
-  TaskProlog: "/etc/slurm/prolog"
-  TaskEpilog: "/etc/slurm/epilog"
+  TaskProlog: "/etc/slurm/task-prolog"
+  TaskEpilog: "/etc/slurm/task-epilog"
+  Prolog: "/etc/slurm/prolog"
+  Epilog: "/etc/slurm/epilog"
+slurm_default_scratch_quota: 10240
