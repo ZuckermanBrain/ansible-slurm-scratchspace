@@ -1,6 +1,13 @@
 #!/bin/bash
 export PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
 
+# SD-368: For array jobs, only the first task should unset the quota.
+if [ -n ${SLURM_ARRAY_TASK_ID} ]; then
+	if [ ${SLURM_ARRAY_TASK_ID} -ne ${SLURM_ARRAY_TASK_MIN} ]; then
+		exit 0
+	fi
+fi
+
 # From https://stackoverflow.com/questions/26621647/convert-human-readable-to-bytes-in-bash/26621833
 dehumanise() {
 	for v in "${@:-$(</dev/stdin)}"
@@ -24,21 +31,24 @@ export SLURM_TMPFS={{ slurm_config.TmpFS }}
 # Check if scratch filesystem is xfs and has quotas on before proceeding
 if mount | grep ${SLURM_TMPFS} | grep xfs | grep -q usrquota;
 then
-	# XFS reports blocks in units of 1 KB by default
-	export XFS_BLOCKSIZE=1024
-	export XFS_DEFAULT_HARD_QUOTA={{ slurm_default_scratch_quota }}
-	export SLURM_USER=$(scontrol show job ${SLURM_JOB_ID} | grep -io 'UserId=[A-Za-z]\{1,3\}[0-9]*' | cut -d= -f2)
-	export SLURM_MINTMPDISKNODE=$(scontrol show job ${SLURM_JOB_ID} | grep -io MinTmpDiskNode=.* | cut -d= -f2)
-	export XFS_REQUESTEDBLOCKS=$(( $(dehumanise ${SLURM_MINTMPDISKNODE}) / ${XFS_BLOCKSIZE} ))
-	# Get current quota allocation
-	# quota -u ${SLURM_USER} -f ${SLURM_TMPFS} in theory is permissible, but seems to be broken
-	export XFS_CURRENTBLOCKS=$(quota -u ${SLURM_USER} | grep $(df ${SLURM_TMPFS} | tail -1 | awk '{print $1}') | awk '{print $4}')
-	export XFS_TOTALBLOCKS=$(( ${XFS_CURRENTBLOCKS} - ${XFS_REQUESTEDBLOCKS} ))
-	# To prevent issues like negative integers
-	if [ ${XFS_TOTALBLOCKS} -lt ${XFS_DEFAULT_HARD_QUOTA} ];
+	if scontrol show job ${SLURM_JOB_ID} | grep -io MinTmpDiskNode=.*;
 	then
-		export XFS_TOTALBLOCKS=${XFS_DEFAULT_HARD_QUOTA}
+		# XFS reports blocks in units of 1 KB by default
+		export XFS_BLOCKSIZE=1024
+		export XFS_DEFAULT_HARD_QUOTA={{ slurm_default_scratch_quota }}
+		export SLURM_USER=$(scontrol show job ${SLURM_JOB_ID} | grep -io 'UserId=[A-Za-z]\{1,3\}[0-9]*' | cut -d= -f2)
+		export SLURM_MINTMPDISKNODE=$(scontrol show job ${SLURM_JOB_ID} | grep -io MinTmpDiskNode=.* | cut -d= -f2)
+		export XFS_REQUESTEDBLOCKS=$(( $(dehumanise ${SLURM_MINTMPDISKNODE}) / ${XFS_BLOCKSIZE} ))
+		# Get current quota allocation
+		# quota -u ${SLURM_USER} -f ${SLURM_TMPFS} in theory is permissible, but seems to be broken
+		export XFS_CURRENTBLOCKS=$(quota -u ${SLURM_USER} | grep $(df ${SLURM_TMPFS} | tail -1 | awk '{print $1}') | awk '{print $4}')
+		export XFS_TOTALBLOCKS=$(( ${XFS_CURRENTBLOCKS} - ${XFS_REQUESTEDBLOCKS} ))
+		# To prevent issues like negative integers
+		if [ ${XFS_TOTALBLOCKS} -lt ${XFS_DEFAULT_HARD_QUOTA} ];
+		then
+			export XFS_TOTALBLOCKS=${XFS_DEFAULT_HARD_QUOTA}
+		fi
+		echo "Resetting scratch space quota for ${SLURM_USER}"
+		xfs_quota -x -c "limit bhard=${XFS_TOTALBLOCKS}k ${SLURM_USER}" ${SLURM_TMPFS}
 	fi
-	echo "Resetting scratch space quota for ${SLURM_USER}"
-	xfs_quota -x -c "limit bhard=${XFS_TOTALBLOCKS}k ${SLURM_USER}" ${SLURM_TMPFS}
 fi

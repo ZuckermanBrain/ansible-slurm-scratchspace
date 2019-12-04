@@ -1,14 +1,20 @@
 #!/bin/bash
 export PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
 
+# SD-368: For array jobs, only the first task should set the quota.
+if [ -n ${SLURM_ARRAY_TASK_ID} ]; then
+	if [ ${SLURM_ARRAY_TASK_ID} -ne ${SLURM_ARRAY_TASK_MIN} ]; then
+		exit 0
+	fi
+fi
+
 # From https://stackoverflow.com/questions/26621647/convert-human-readable-to-bytes-in-bash/26621833
 dehumanise() {
 	for v in "${@:-$(</dev/stdin)}"
 	do  
 		echo $v | awk \
 		'BEGIN{IGNORECASE = 1}
-		function printpower(n,b,p) {printf "%u\n", n*b^p; next}
-		/[0-9]$/{print $1;next};
+		function printpower(n,b,p) {printf "%u\n", n*b^p; next} /[0-9]$/{print $1;next};
 		/K(iB)?$/{printpower($1,  2, 10)};
 		/M(iB)?$/{printpower($1,  2, 20)};
 		/G(iB)?$/{printpower($1,  2, 30)};
@@ -24,15 +30,18 @@ export SLURM_TMPFS={{ slurm_config.TmpFS }}
 # Check if scratch filesystem is xfs and has quotas on before proceeding
 if mount | grep ${SLURM_TMPFS} | grep xfs | grep -q usrquota;
 then
-	# XFS reports blocks in units of 1 KB by default
-	export XFS_BLOCKSIZE=1024
-	export SLURM_USER=$(scontrol show job ${SLURM_JOB_ID} | grep -io 'UserId=[A-Za-z]\{1,3\}[0-9]*' | cut -d= -f2)
-	export SLURM_MINTMPDISKNODE=$(scontrol show job ${SLURM_JOB_ID} | grep -io MinTmpDiskNode=.* | cut -d= -f2)
-	export XFS_REQUESTEDBLOCKS=$(( $(dehumanise ${SLURM_MINTMPDISKNODE}) / ${XFS_BLOCKSIZE} ))
-	# Get current quota allocation
-	# quota -u ${SLURM_USER} -f ${SLURM_TMPFS} in theory is permissible, but seems to be broken
-	export XFS_CURRENTBLOCKS=$(quota -u ${SLURM_USER} | grep $(df ${SLURM_TMPFS} | tail -1 | awk '{print $1}') | awk '{print $4}')
-	export XFS_TOTALBLOCKS=$(( ${XFS_CURRENTBLOCKS} + ${XFS_REQUESTEDBLOCKS} ))
-	echo "Setting scratch space quota for ${SLURM_USER}"
-	xfs_quota -x -c "limit bhard=${XFS_TOTALBLOCKS}k ${SLURM_USER}" ${SLURM_TMPFS}
+	if scontrol show job ${SLURM_JOB_ID} | grep -io MinTmpDiskNode=.*;
+	then
+		# XFS reports blocks in units of 1 KB by default
+		export XFS_BLOCKSIZE=1024
+		export SLURM_USER=$(scontrol show job ${SLURM_JOB_ID} | grep -io 'UserId=[A-Za-z]\{1,3\}[0-9]*' | cut -d= -f2)
+		export SLURM_MINTMPDISKNODE=$(scontrol show job ${SLURM_JOB_ID} | grep -io MinTmpDiskNode=.* | cut -d= -f2)
+		export XFS_REQUESTEDBLOCKS=$(( $(dehumanise ${SLURM_MINTMPDISKNODE}) / ${XFS_BLOCKSIZE} ))
+		# Get current quota allocation
+		# quota -u ${SLURM_USER} -f ${SLURM_TMPFS} in theory is permissible, but seems to be broken
+		export XFS_CURRENTBLOCKS=$(quota -u ${SLURM_USER} | grep $(df ${SLURM_TMPFS} | tail -1 | awk '{print $1}') | awk '{print $4}')
+		export XFS_TOTALBLOCKS=$(( ${XFS_CURRENTBLOCKS} + ${XFS_REQUESTEDBLOCKS} ))
+		echo "Setting scratch space quota for ${SLURM_USER}"
+		xfs_quota -x -c "limit bhard=${XFS_TOTALBLOCKS}k ${SLURM_USER}" ${SLURM_TMPFS}
+	fi
 fi
