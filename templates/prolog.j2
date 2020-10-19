@@ -2,8 +2,8 @@
 export PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
 
 # SD-368: For array jobs, only the first task should set the quota.
-if [ -n ${SLURM_ARRAY_TASK_ID} ]; then
-	if [ ${SLURM_ARRAY_TASK_ID} -ne ${SLURM_ARRAY_TASK_MIN} ]; then
+if [ -n "${SLURM_ARRAY_TASK_ID}" ]; then
+	if [ "${SLURM_ARRAY_TASK_ID}" -ne "${SLURM_ARRAY_TASK_MIN}" ]; then
 		exit 0
 	fi
 fi
