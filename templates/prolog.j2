@@ -1,11 +1,9 @@
 #!/bin/bash
 export PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
 
-# SD-368: For array jobs, only the first task should set the quota.
+# SD-368/SD-1036: Array jobs are unsupported for scratch space usage.
 if [ -n "${SLURM_ARRAY_TASK_ID}" ]; then
-	if [ "${SLURM_ARRAY_TASK_ID}" -ne "${SLURM_ARRAY_TASK_MIN}" ]; then
-		exit 0
-	fi
+	exit 0
 fi
 
 # From https://stackoverflow.com/questions/26621647/convert-human-readable-to-bytes-in-bash/26621833
