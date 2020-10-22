@@ -2,7 +2,11 @@
 export PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
 
 # SD-368/SD-1036: Array jobs are unsupported for scratch space usage.
-if [ -n "${SLURM_ARRAY_TASK_ID}" ]; then
+# For some reason the SLURM_ARRAY* variables don't get populated before the
+# prolog is run occasionally (possibly due to being queued separately from 
+# other parts of the job array if there aren't enough resources to run all
+# jobs in the array at the same time.
+if scontrol show job ${SLURM_JOB_ID} | grep -q ArrayJobId; then 
 	exit 0
 fi
 
