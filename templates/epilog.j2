@@ -1,11 +1,13 @@
 #!/bin/bash
 export PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
 
-# SD-368: For array jobs, only the first task should unset the quota.
-if [ -n ${SLURM_ARRAY_TASK_ID} ]; then
-	if [ ${SLURM_ARRAY_TASK_ID} -ne ${SLURM_ARRAY_TASK_MIN} ]; then
-		exit 0
-	fi
+# SD-368/SD-1036: Array jobs are unsupported for scratch space usage.
+# For some reason the SLURM_ARRAY* variables don't get populated before the
+# prolog is run occasionally (possibly due to being queued separately from 
+# other parts of the job array if there aren't enough resources to run all
+# jobs in the array at the same time.
+if scontrol show job ${SLURM_JOB_ID} | grep -q ArrayJobId; then 
+	exit 0
 fi
 
 # From https://stackoverflow.com/questions/26621647/convert-human-readable-to-bytes-in-bash/26621833
