@@ -1,11 +1,16 @@
 ansible-slurm-scratchspace 
 =========
 
-This role augments the [ansible-slurm](https://github.com/galaxyproject/ansible-slurm) role by installing prolog and epilog scripts used to manage locally-attached scratch space.
+This role augments the [ansible-slurm](https://github.com/galaxyproject/ansible-slurm) role by installing prolog and epilog scripts used to manage locally-attached scratch space.  It exists to implement logic that is left unimplemented by SLURM itself.  Namely, it is a response to the following requirement (taken from the `slurm.conf` manual):
 
-It assumes that the variable that is defined under `slurm_config.TmpFS` represents a local mount that exists on each node in the cluster. This mount should use the XFS filesystem and be mounted with the `uquota` option.
+```
+TmpDisk
+    Total size of temporary disk storage in TmpFS in megabytes (e.g. "16384"). TmpFS (for "Temporary File System") identifies the location which jobs should use for temporary storage. Note this does not indicate the amount of free space available to the user on the node, only the total file system size. The system administration should ensure this file system is purged as needed so that user jobs have access to most of this space. The Prolog and/or Epilog programs (specified in the configuration file) might be used to ensure the file system is kept clean. The default value is 0. 
+```
 
-After this role has been layered on top of `ansible-slurm`, a `slurmd`-invoked prolog script will dynamically adjust the XFS quota on a node after the first job step for a job that has been scheduled based off a value given to the `--tmp` flag when running `sbatch` or `srun`.  A task prolog script will then create a temporary directory based off the username of the job owner and the job id and save the path to this directory within a bash variable (`SLURM_SCRATCH`), which can then be used within job scripts.
+It assumes that the variable that is defined under `slurm_config.TmpFS` represents a local mount that exists on each node in the cluster. This mount should use the XFS filesystem and be mounted with the `uquota` option.  The mount should have the following permissions: `5777`/`drwsrwxrwt`.
+
+After this role has been layered on top of `ansible-slurm`, a `slurmd`-invoked prolog script will dynamically adjust the XFS quota on a node after the first job step for a job has been scheduled.  The quota adjustment is based off a value given to the `--tmp` flag when running `sbatch` or `srun`.  A task prolog script will then create a temporary directory based off the username of the job owner and the job id and save the path to this directory within a bash variable (`SLURM_SCRATCH`), which can then be used within job scripts.
 
 When a job has finished (or been requeued) a task epilog script removes all files within the scratch space.  The `slurmd`-based epilog script will then set the XFS quota for the local drive to the value of `slurm_default_scratch_quota` (see below).
 
